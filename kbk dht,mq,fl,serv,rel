@@ -1,0 +1,128 @@
+#include <DHT.h>
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+#include <Servo.h>
+
+// === Konstanta dan Pin ===
+#define DHTPIN 2
+#define DHTTYPE DHT22
+#define MQ2PIN A1
+#define FLAME_PIN A0
+#define BUZZER_PIN 8
+#define RELAY_PIN 7
+#define SERVO_PIN 9
+
+// === Inisialisasi Sensor dan LCD ===
+DHT dht(DHTPIN, DHTTYPE);
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+Servo fireServo;
+
+// === Batas Sensor ===
+const float batasSuhu = 50.0;
+const int batasGasBahaya = 400;
+const int batasKelembaban = 300;
+const int batasFlame = 512;
+
+void setup() {
+  Serial.begin(9600);
+  dht.begin();
+  
+  pinMode(MQ2PIN, INPUT);
+  pinMode(FLAME_PIN, INPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(RELAY_PIN, OUTPUT);
+  fireServo.attach(SERVO_PIN);
+
+  digitalWrite(BUZZER_PIN, LOW);
+  digitalWrite(RELAY_PIN, LOW);
+
+  lcd.init();
+  lcd.backlight();
+  lcd.setCursor(0, 0);
+  lcd.print("Sistem Kebakaran");
+  delay(2000);
+  lcd.clear();
+}
+
+void loop() {
+  float suhu = dht.readTemperature();
+  float kelembaban = dht.readHumidity();
+  int gas = analogRead(MQ2PIN);
+  int flame = analogRead(FLAME_PIN);
+  
+  bool gasDetected = gas > batasGasBahaya;
+  bool fireDetected = flame < batasFlame;
+
+  if (!isnan(suhu) && !isnan(kelembaban)) {
+    Serial.print("Suhu: ");
+    Serial.print(suhu);
+    Serial.print("°C | Kelembaban: ");
+    Serial.print(kelembaban);
+    Serial.println("%");
+  } else {
+    Serial.println("DHT Sensor: Error reading data!");
+  }
+
+  Serial.print("Flame: ");
+  Serial.print(flame);
+  Serial.print(" (");
+  Serial.print(fireDetected ? "API TERDETEKSI!" : "Aman");
+  Serial.println(")");
+
+  Serial.print("Gas: ");
+  Serial.print(gas);
+  Serial.print(" (");
+  Serial.print(gasDetected ? "GAS BERBAHAYA!" : "Normal");
+  Serial.println(")");
+
+  // Reset indikator
+  digitalWrite(BUZZER_PIN, LOW);
+  digitalWrite(RELAY_PIN, LOW);
+  fireServo.write(0);
+
+  String status = "AMAN";
+
+  if (suhu >= batasSuhu || gasDetected || fireDetected) {
+    digitalWrite(BUZZER_PIN, HIGH);
+    digitalWrite(RELAY_PIN, HIGH);
+    fireServo.write(90);
+    status = "BAHAYA!";
+  } else if (kelembaban < batasKelembaban || suhu >= 35) {
+    digitalWrite(BUZZER_PIN, HIGH);
+    status = "Kelembaban Rendah";
+  } else {
+    noTone(BUZZER_PIN);
+    fireServo.write(0);
+  }
+
+  // Tampilkan suhu & kelembaban lalu scroll
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Suhu: ");
+  lcd.print(suhu);
+  lcd.print(" C");
+
+  lcd.setCursor(0, 1);
+  lcd.print("Kelembaban: ");
+  lcd.print(kelembaban);
+  lcd.print(" %");
+  delay(2000);
+
+  for (int i = 0; i < 16; i++) {
+    lcd.scrollDisplayLeft();
+    delay(300);
+  }
+
+  // Tampilkan gas & api
+  lcd.clear();
+  lcd.setCursor(0, 0);
+  lcd.print("Gas: ");
+  lcd.print(gas);
+  lcd.print("| Api: ");
+  lcd.print(flame);
+  
+  lcd.setCursor(0, 1);
+  lcd.print("Status: ");
+  lcd.print(status);
+  delay(2000);
+}
