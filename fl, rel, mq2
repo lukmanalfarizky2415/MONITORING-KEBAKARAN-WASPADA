@@ -1,0 +1,79 @@
+#include <LiquidCrystal_I2C.h>
+#include <Wire.h>
+
+#define FLAME_SENSOR_PIN 2
+#define LED_PIN 3
+#define BUZZER_PIN 4
+#define RELAY_PIN 5
+#define MQ2_PIN A0
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+int gasThreshold = 300;  
+
+void setup() {
+  pinMode(FLAME_SENSOR_PIN, INPUT);
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(RELAY_PIN, OUTPUT);
+  Serial.begin(9600);
+
+    int positionCounter;
+  
+  lcd.begin(16, 2);
+  lcd.backlight();  
+  lcd.print("Sistem Pendeteksi Kebakaran");
+  for(positionCounter = 0; positionCounter < 26; positionCounter++) {
+  lcd.scrollDisplayLeft();
+  delay(300);
+}
+  
+  lcd.clear();
+  Serial.println("Sistem Pendeteksi Kebakaran");
+}
+
+void loop() {
+  int flameDetected = digitalRead(FLAME_SENSOR_PIN); 
+  int gasValue = analogRead(MQ2_PIN);
+
+  Serial.print("Gas value: ");
+  Serial.println(gasValue);
+
+  // KONTROL FLAME
+  if (flameDetected == HIGH) {
+    digitalWrite(RELAY_PIN, HIGH); 
+    Serial.println("lari ada kebakaran");
+    lcd.println("lari ada kebakaran");
+     lcd.setCursor(0, 0);
+    delay(1000);
+    lcd.clear();
+  } else {
+    digitalWrite(RELAY_PIN, LOW); 
+     Serial.println("tidak ada api");
+    lcd.println("tidak ada api");
+     lcd.setCursor(0, 1);
+    delay(1000);
+    lcd.clear();
+  }
+
+  // KONTROL MQ2
+  if (gasValue > gasThreshold) {
+      Serial.println("gas terdeteksi, kemungkinan terjadi kebakaran");
+      lcd.println("gas terdeteksi, kemungkinan terjadi kebakaran");
+       int positionCounter;
+       
+
+      for (int i = 0; i < 10; i++) {
+      digitalWrite(buzzerPin, HIGH);
+      digitalWrite(ledPin, HIGH);
+      delay(100);
+      digitalWrite(buzzerPin, LOW);
+      digitalWrite(ledPin, LOW);
+      delay(100);
+    } 
+  } else {
+    digitalWrite(BUZZER_PIN, LOW);
+    digitalWrite(LED_PIN, LOW);
+  }
+
+  delay(200);
+}
