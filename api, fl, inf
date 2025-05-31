@@ -1,0 +1,80 @@
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
+#define MQ2_PIN A0
+#define FLAME_PIN 2
+#define IR_PIN 3
+
+#define LED_GAS 8
+#define LED_FLAME 9
+#define LED_IR 10
+
+LiquidCrystal_I2C lcd(0x27, 16, 2);
+
+const int MQ_THRESHOLD = 400;
+
+void setup() {
+  pinMode(MQ2_PIN, INPUT);
+  pinMode(FLAME_PIN, INPUT);
+  pinMode(IR_PIN, INPUT);
+
+  pinMode(LED_GAS, OUTPUT);
+  pinMode(LED_FLAME, OUTPUT);
+  pinMode(LED_IR, OUTPUT);
+
+  Serial.begin(9600);
+
+  lcd.init();
+  lcd.backlight();
+
+  lcd.setCursor(0, 0);
+  lcd.print("Sistem Siaga");
+  lcd.setCursor(0, 1);
+  lcd.print("Kebakaran");
+  delay(2000);
+  lcd.clear();
+}
+
+void loop() {
+  int mq2_value = analogRead(MQ2_PIN);
+  int flameDetected = digitalRead(FLAME_PIN);
+  int irDetected = digitalRead(IR_PIN);
+
+  bool gasAlarm = (mq2_value > MQ_THRESHOLD);
+  bool flameAlarm = (flameDetected == HIGH);
+  bool irAlarm = (irDetected == HIGH);
+
+  digitalWrite(LED_GAS, gasAlarm ? HIGH : LOW);
+  digitalWrite(LED_FLAME, flameAlarm ? HIGH : LOW);
+  digitalWrite(LED_IR, irAlarm ? HIGH : LOW);
+
+  lcd.clear();
+  lcd.setCursor(0, 0);
+
+  if (flameAlarm) {
+    lcd.print("API TERDETEKSI");
+  } else if (gasAlarm) {
+    lcd.print("GAS TERDETEKSI");
+  } else if (irAlarm) {
+    lcd.print("OBJEK TERDETEKSI");
+  } else {
+    lcd.print("Sistem Aman   ");
+  }
+
+  lcd.setCursor(0, 1);
+  lcd.print("MQ:");
+  lcd.print(mq2_value);
+  lcd.print(" F:");
+  lcd.print(flameDetected);
+  lcd.print(" IR:");
+  lcd.print(irDetected);
+
+  Serial.print("MQ2: ");
+  Serial.print(mq2_value);
+  Serial.print(" | Flame: ");
+  Serial.print(flameDetected);
+  Serial.print(" | IR: ");
+  Serial.println(irDetected);
+
+  delay(2000);
+}
